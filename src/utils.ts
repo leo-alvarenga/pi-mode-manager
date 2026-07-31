@@ -1,41 +1,10 @@
+import {
+  LOGGER_PREFIX,
+  MODE_CONFIG,
+  WEB_TOOLS,
+  WRITE_TOOLS,
+} from "./constants";
 import { ModeConfig, WebTool, WriteTool } from "./types";
-
-export const MODE_CONFIG: ModeConfig[] = [
-  {
-    name: "plan",
-    permissions: ["read", "web"],
-    description:
-      "The agent can read files and access web tools, but cannot modify files or execute commands; This mode is suitable for planning and research tasks.",
-  },
-  {
-    name: "build",
-    permissions: ["read", "write"],
-    description:
-      "The agent can read and write/edit/delete files, but cannot access web tools; This mode is suitable for building and executing tasks.",
-  },
-];
-
-export const WRITE_TOOLS: WriteTool[] = [
-  "write",
-  "edit",
-  "delete_file",
-  "bash",
-  "shell",
-  "run",
-  "exec",
-];
-
-export const WEB_TOOLS: WebTool[] = [
-  "web-search",
-  "http-get",
-  "http-post",
-  "web",
-  "fetch",
-  "api",
-];
-
-export const UI_KEY = "pi-mode__";
-export const DEFAULT_MODE: string = MODE_CONFIG[0].name;
 
 /**
  * Checks if the provided mode is valid based on the MODE_CONFIG
@@ -98,7 +67,7 @@ export function getAllowedTools(
  */
 export function getHelpText(): string {
   return `
-## PiModeManager
+# ${LOGGER_PREFIX}
 
 PiModeManager helps you manage what you agent can do by hiding or showing tools based on the current mode.
 Each mode has specific permissions that determine which tools are accessible.

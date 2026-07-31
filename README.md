@@ -1,0 +1,87 @@
+# pi-mode-manager
+
+A [pi](https://github.com/earendil-works/pi-coding-agent) extension that keeps the agent on a short leash. It adds two modes, `plan` and `build`, and hides the tools that don't belong to the current one.
+
+- `plan` — read and web. The agent can read files and search the internet, but it can't write, edit, or run commands. Good for reviews, research, and anything where you don't want your tree touched.
+- `build` — read and write. Full file access, but no web tools. For when there's actual work to do.
+
+Without something like this, the agent gets every tool it registered, and "can you look at this function?" ends with an unexpected `rm -rf`. Modes are a cheap way to say "look, don't touch" without babysitting each interaction.
+
+### How it behaves
+
+- On session start it restores the last mode used in that session, falling back to `plan` when there's nothing to go on
+- Tools that don't match the current mode are disabled through `setActiveTools()`, so the agent can't even call them
+- A short mode briefing is injected into the system prompt, so the model knows what it's allowed to do
+- The active mode is shown in a widget above the editor
+
+## Installation
+
+It's a pi package, so `pi install` handles everything:
+
+```bash
+pi install git:github.com/leo-alvarenga/pi-mode-manager
+```
+
+Local checkout, e.g. while hacking on it:
+
+```bash
+pi install ./path/to/pi-mode-manager
+```
+
+If it ever lands on npm, `pi install npm:pi-mode-manager` works the same way.
+
+Want to try it without installing? Run a one-off session with `-e`:
+
+```bash
+pi -e git:github.com/leo-alvarenga/pi-mode-manager
+```
+
+Restart pi or run `/reload` inside a session after installing. You should see `Mode: plan` above the editor.
+
+## Usage
+
+| Command                      | What it does                                                         |
+| ---------------------------- | -------------------------------------------------------------------- |
+| `/mode`                      | Shows the current mode and the list of valid ones                    |
+| `/mode plan` / `/mode build` | Switches mode. Tab completion works, so `/mode` + Tab gets you there |
+| `/mode_help`                 | Prints the same info as the commands, for the forgetful              |
+
+A mode switch applies to the next interaction. If the agent is already working, it finishes the current interaction under the old mode; the widget updates right away either way.
+
+The last mode you used is remembered per session and restored on the next start.
+
+## Adding modes
+
+Modes are defined in `src/utils.ts` as `MODE_CONFIG`. Each entry is a name, a description, and a permission list (`read`, `write`, `web`). Command completion, the help text, and the prompt injection all derive from that table, so a new mode mostly writes itself.
+
+Which tool names count as `write` or `web` is decided by the `WRITE_TOOLS` and `WEB_TOOLS` lists in the same file. Anything not in either list is treated as read-only and always allowed.
+
+## Programmatic access
+
+Other extensions can read the current mode or react to changes. Two ways:
+
+Pull: every mode change is persisted to the session tree via `pi.appendEntry("pi-mode-manager-mode", { mode })`. To get the current mode, scan the branch for the latest entry:
+
+```ts
+for (const entry of ctx.sessionManager.getBranch()) {
+  if (entry.type === "custom" && entry.customType === "pi-mode-manager-mode") {
+    const mode = entry.data?.mode; // latest entry wins
+  }
+}
+```
+
+Push — changes are emitted on the `pi-mode:changed` channel of the inter-extension event bus (`pi.events`):
+
+```ts
+pi.events.on("pi-mode-manager:mode-changed", ({ mode, previousMode }) => {
+  // `mode` is authoritative; `previousMode` is "plan" when no mode was set yet
+});
+```
+
+The entry type and channel name are `MODE_ENTRY_TYPE` and `MODE_CHANGED_EVENT` in `src/utils.ts`, in case you ever want to rename them.
+
+Restore on `session_start` reads the persisted entry first and falls back to message `details` from older sessions, so pre-existing conversations still come back in the right mode.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

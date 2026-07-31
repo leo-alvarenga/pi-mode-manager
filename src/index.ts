@@ -4,29 +4,31 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 
 import { createToolManager } from "./tools";
-import { SafeStatefulMessage } from "./types";
+import { ToolManagerState } from "./types";
 import {
-  isValidMode,
   DEFAULT_MODE,
-  getHelpText,
+  LOGGER_PREFIX,
   MODE_CONFIG,
-  getValidModeNames,
+  MODE_DATA_KEY,
   UI_KEY,
-} from "./utils";
+} from "./constants";
+import { isValidMode, getHelpText, getValidModeNames } from "./utils";
 
 export default function (pi: ExtensionAPI) {
   const toolManager = createToolManager();
 
   // Initialize state on start
   pi.on("session_start", async (_, ctx) => {
+    // Start from the most recent mode in the session history, if available
     const entries = [...ctx.sessionManager.getBranch()].reverse();
 
     for (const entry of entries) {
-      if (entry.type !== "message") {
+      if (entry.type !== "custom" || entry.customType !== MODE_DATA_KEY) {
         continue;
       }
 
-      const mode = (entry.message as SafeStatefulMessage)?.details?.mode;
+      const possibleState = entry.data as Partial<ToolManagerState>;
+      const mode = possibleState?.currentMode;
 
       if (mode && isValidMode(mode)) {
         setMode(mode, ctx);
@@ -73,7 +75,7 @@ export default function (pi: ExtensionAPI) {
       try {
         if (!args) {
           ctx.ui.notify(
-            `Current mode: ${toolManager.getCurrentMode()}`,
+            `${LOGGER_PREFIX} Current mode: ${toolManager.getCurrentMode()}`,
             "info",
           );
 
@@ -105,7 +107,7 @@ export default function (pi: ExtensionAPI) {
 
     if (!ctx) return;
 
-    ctx.ui.notify(`Switched to ${mode} mode`, "info");
+    ctx.ui.notify(`${LOGGER_PREFIX} Switched to ${mode} mode`, "info");
 
     ctx.ui.setWidget(UI_KEY, undefined, { placement: "aboveEditor" });
     ctx.ui.setWidget(UI_KEY, [`Mode: ${mode}`], {
@@ -115,14 +117,14 @@ export default function (pi: ExtensionAPI) {
     if (ctx.isIdle()) return;
 
     ctx.ui.notify(
-      `New mode will take effect after the current interaction has completed`,
+      `${LOGGER_PREFIX} New mode will take effect after the current interaction has completed`,
       "info",
     );
   }
 
   function listValidModes(ctx: ExtensionContext, toolName?: string) {
     ctx.ui.notify(
-      `Valid modes: ${getValidModeNames(toolName).join(", ")}`,
+      `${LOGGER_PREFIX} Valid modes: ${getValidModeNames(toolName).join(", ")}`,
       "info",
     );
   }

@@ -1,7 +1,14 @@
 import { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-import type { ModeConfig } from "./types";
-import { DEFAULT_MODE, getAllowedTools, MODE_CONFIG } from "./utils";
+import {
+  DEFAULT_MODE,
+  LOGGER_PREFIX,
+  MODE_CHANGED_EVENT,
+  MODE_CONFIG,
+  MODE_DATA_KEY,
+} from "./constants";
+import { getAllowedTools } from "./utils";
+import type { ModeConfig, ToolManagerState } from "./types";
 
 /**
  * ToolManager class manages the current mode and allowed tools based on the mode configuration
@@ -40,6 +47,9 @@ export class ToolManager {
       MODE_CONFIG.find((m) => m.name === this.currentMode) || MODE_CONFIG[0];
 
     this.updateAllowedTools();
+
+    this.updateDataEntry(pi);
+    this.triggerModeChangedEvent(pi);
   }
 
   public getPrePromptInstructions(): string {
@@ -49,14 +59,15 @@ export class ToolManager {
 
     let instructions = [
       `\n`,
-      `[pi-mode-manager] Mode instructions`,
+      `${LOGGER_PREFIX} Mode instructions`,
       `Current Agent Mode: ${mode.name}`,
       `Mode description: ${mode.description}`,
       `Allowed tools (${allowedTools.length}): ${allowedTools.join(", ")}`,
-      `NOT available in this mode (${deniedTools.length})): ${deniedTools.join(", ")}`,
-      `DO NOT ATTEMPT TO USE tools that are not allowed in this mode.`,
-      `Assume the user has set the mode intentionally and follow the mode's restrictions.`,
-      `Remind the user to swithch modes if they want to use tools that are not allowed in the current mode.`,
+      `NOT available in this mode (${deniedTools.length}): ${deniedTools.join(", ")}`,
+      "DO NOT ATTEMPT TO USE tools that are not allowed in this mode.",
+      "Assume the user has set the mode intentionally and follow the mode's restrictions.",
+      "The mode may have changed while you were working. Only the latest mode change applies: follow the mode instructions above and disregard any earlier mode instructions in the conversation.",
+      "Remind the user to switch modes if they want to use tools that are not allowed in the current mode.",
     ];
 
     if (mode.extraInstructions) {
@@ -82,6 +93,15 @@ export class ToolManager {
     return Array.from(this.deniedToolsSet);
   }
 
+  public getState(): ToolManagerState {
+    return {
+      currentMode: this.getCurrentMode(),
+      currentModeConfig: this.getCurrentModeConfig(),
+      deniedTools: this.getDeniedTools(),
+      allowedTools: this.getAllowedTools(),
+    };
+  }
+
   public isToolAllowed(tool: string): boolean {
     return this.allowedToolsSet.has(tool) || !this.deniedToolsSet.has(tool);
   }
@@ -94,6 +114,14 @@ export class ToolManager {
       this.allowedToolsSet.add(tool);
       this.deniedToolsSet.delete(tool);
     });
+  }
+
+  private updateDataEntry(pi: ExtensionAPI): void {
+    pi.appendEntry(MODE_DATA_KEY, this.getState());
+  }
+
+  private triggerModeChangedEvent(pi: ExtensionAPI): void {
+    pi.events.emit(MODE_CHANGED_EVENT, this.getState());
   }
 
   private isValidMode(mode: string): boolean {
