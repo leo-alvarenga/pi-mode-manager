@@ -8,6 +8,7 @@ import { ModeConfig, WebTool, WriteTool } from "./types";
 export const BUILT_IN_MODES: ModeConfig[] = [
   {
     name: "plan",
+    color: "accent",
     permissions: ["read", "web"],
     description:
       "The agent can read files and access web tools, but cannot modify files or execute commands; This mode is suitable for planning and research tasks.",
@@ -19,6 +20,7 @@ The agent should only read files and access web tools for research purposes.
   },
   {
     name: "build",
+    color: "warning",
     permissions: ["read", "write"],
     description:
       "The agent can read and write/edit/delete files, but cannot access web tools; This mode is suitable for building and executing tasks.",
@@ -64,3 +66,5 @@ export const DEFAULT_MODE: string = BUILT_IN_MODES[0].name;
 
 export const MODE_DATA_KEY = "pi-mode-manager-mode";
 export const MODE_CHANGED_EVENT = "pi-mode-manager:mode-changed";
+
+export const DEFAULT_MODE_ICON = "◆";

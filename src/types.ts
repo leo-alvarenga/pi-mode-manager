@@ -1,3 +1,5 @@
+import { ThemeColor } from "@earendil-works/pi-coding-agent";
+
 export type WriteTool =
   "write" | "edit" | "delete_file" | "bash" | "shell" | "run" | "exec";
 
@@ -11,9 +13,11 @@ export type Permission = "read" | "write" | "web";
  * */
 export type ModeConfig = {
   name: string;
+  icon?: string;
+  color?: ThemeColor;
   description: string;
-  extraInstructions?: string;
   permissions: Permission[];
+  extraInstructions?: string;
 };
 
 export type ToolManagerState = {

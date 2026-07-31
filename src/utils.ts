@@ -1,6 +1,11 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 
-import { LOGGER_PREFIX, WEB_TOOLS, WRITE_TOOLS } from "./constants";
+import {
+  DEFAULT_MODE_ICON,
+  LOGGER_PREFIX,
+  WEB_TOOLS,
+  WRITE_TOOLS,
+} from "./constants";
 import { ModeConfig, WebTool, WriteTool } from "./types";
 
 /**
@@ -74,7 +79,10 @@ export function getAllowedTools(
 export function getModeWidgetLines(mode: ModeConfig, theme: Theme): string[] {
   const pill = theme.bg(
     "selectedBg",
-    theme.fg("accent", theme.bold(` ◆ ${mode.name} `)),
+    theme.fg(
+      mode.color ?? "accent",
+      theme.bold(` ${mode.icon ?? DEFAULT_MODE_ICON} ${mode.name} `),
+    ),
   );
 
   return [pill];
