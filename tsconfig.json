@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "declaration": true,
+    "declarationMap": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "extensions/**"
+      ]
+    },
+    "types": [],
+    "outDir": "dist/types",
+    "rootDir": "extensionsensions",
+    "composite": true
+  },
+  "include": ["extensionsensions"]
+}
+
