@@ -12,7 +12,7 @@ Without something like this, the agent gets every tool it registered, and "can y
 - On session start it restores the last mode used in that session, falling back to `plan` when there's nothing to go on
 - Tools that don't match the current mode are disabled through `setActiveTools()`, so the agent can't even call them
 - A short mode briefing is injected into the system prompt, so the model knows what it's allowed to do
-- The active mode is shown in a widget above the editor
+- The active mode is shown in a widget above the editor as a colored pill — its `icon` (default `◆`) and `color` (default `accent`) control the appearance
 
 ## Installation
 
@@ -36,7 +36,7 @@ Want to try it without installing? Run a one-off session with `-e`:
 pi -e git:github.com/leo-alvarenga/pi-mode-manager
 ```
 
-Restart pi or run `/reload` inside a session after installing. You should see `Mode: plan` above the editor.
+Restart pi or run `/reload` inside a session after installing. You should see a `◆ Plan` pill above the editor — the glyph and color come from the mode's `icon` and `color` properties.
 
 ## Usage
 
@@ -61,13 +61,15 @@ No source changes needed. Drop a `pi-mode-manager.json` file into pi's agents di
       "name": "review",
       "description": "Read-only review mode with web access",
       "permissions": ["read", "web"],
+      "icon": "★",
+      "color": "success",
       "extraInstructions": "Focus on reviewing code quality and suggesting improvements."
     }
   ]
 }
 ```
 
-Each entry is a name, a description, and a permission list (`read`, `write`, `web`), plus an optional `extraInstructions` block appended to the mode briefing. Command completion, the help text, and the prompt injection all derive from the merged table, so a new mode mostly writes itself.
+Each entry is a name, a description, and a permission list (`read`, `write`, `web`), plus three optional fields: `extraInstructions` (appended to the mode briefing), `icon` (a glyph shown in the widget pill, default `◆`), and `color` (a pi theme token that colors the pill, default `accent` — e.g. `success`, `warning`, `error`, `muted`, `dim`, `text`). The built-in `plan` and `build` modes use `accent` and `warning` respectively. Command completion, the help text, and the prompt injection all derive from the merged table, so a new mode mostly writes itself.
 
 Rules:
 

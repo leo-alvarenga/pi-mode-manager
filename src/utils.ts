@@ -8,6 +8,10 @@ import {
 } from "./constants";
 import { ModeConfig, WebTool, WriteTool } from "./types";
 
+export function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 /**
  * Checks if the provided mode is valid for the given mode configuration
  * @param mode - The mode to validate
@@ -70,20 +74,25 @@ export function getAllowedTools(
 
 /**
  * Builds the widget lines shown above the editor for the current mode.
- * Renders the mode name as an accent-colored pill on the theme's selected
- * background, followed by a dimmed, truncated description.
+ * Renders the mode name as a pill on the theme's selected background,
+ * colored with the mode's `color` token (default `accent`). Invalid
+ * colors are caught and fall back to `accent` so a bad config entry can
+ * never crash the widget.
  * @param mode - The current mode configuration
  * @param theme - The active pi theme (ctx.ui.theme)
  * @returns widget lines, using theme tokens so they adapt to dark/light themes
  */
 export function getModeWidgetLines(mode: ModeConfig, theme: Theme): string[] {
-  const pill = theme.bg(
-    "selectedBg",
-    theme.fg(
-      mode.color ?? "accent",
-      theme.bold(` ${mode.icon ?? DEFAULT_MODE_ICON} ${mode.name} `),
-    ),
+  const label = theme.bold(
+    ` ${mode.icon ?? DEFAULT_MODE_ICON} ${capitalize(mode.name)} `,
   );
+
+  let pill: string;
+  try {
+    pill = theme.bg("selectedBg", theme.fg(mode.color ?? "accent", label));
+  } catch {
+    pill = theme.bg("selectedBg", theme.fg("accent", label));
+  }
 
   return [pill];
 }
