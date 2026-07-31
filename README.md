@@ -52,9 +52,32 @@ The last mode you used is remembered per session and restored on the next start.
 
 ## Adding modes
 
-Modes are defined in `src/utils.ts` as `MODE_CONFIG`. Each entry is a name, a description, and a permission list (`read`, `write`, `web`). Command completion, the help text, and the prompt injection all derive from that table, so a new mode mostly writes itself.
+No source changes needed. Drop a `pi-mode-manager.json` file into pi's agents directory (`~/.pi/agent/`, or wherever `PI_CODING_AGENT_DIR` points):
 
-Which tool names count as `write` or `web` is decided by the `WRITE_TOOLS` and `WEB_TOOLS` lists in the same file. Anything not in either list is treated as read-only and always allowed.
+```json
+{
+  "modes": [
+    {
+      "name": "review",
+      "description": "Read-only review mode with web access",
+      "permissions": ["read", "web"],
+      "extraInstructions": "Focus on reviewing code quality and suggesting improvements."
+    }
+  ]
+}
+```
+
+Each entry is a name, a description, and a permission list (`read`, `write`, `web`), plus an optional `extraInstructions` block appended to the mode briefing. Command completion, the help text, and the prompt injection all derive from the merged table, so a new mode mostly writes itself.
+
+Rules:
+
+- User modes are **additive**: the built-in `plan` and `build` modes are always present and cannot be overridden or removed.
+- Mode names must be `[a-z0-9_-]` and unique — duplicates (including built-in names) are skipped.
+- Invalid entries — broken JSON, unknown permissions, missing descriptions — are skipped with a warning; the rest still load.
+- The built-in modes live in `src/constants.ts` (`BUILT_IN_MODES`); loading and validation live in `src/config.ts`.
+- Changes take effect after restarting pi or running `/reload`.
+
+Which tool names count as `write` or `web` is decided by the `WRITE_TOOLS` and `WEB_TOOLS` lists in `src/constants.ts`. Anything not in either list is treated as read-only and always allowed.
 
 ## Programmatic access
 
@@ -78,7 +101,7 @@ pi.events.on("pi-mode-manager:mode-changed", ({ mode, previousMode }) => {
 });
 ```
 
-The entry type and channel name are `MODE_ENTRY_TYPE` and `MODE_CHANGED_EVENT` in `src/utils.ts`, in case you ever want to rename them.
+The entry type and channel name are `MODE_DATA_KEY` and `MODE_CHANGED_EVENT` in `src/constants.ts`, in case you ever want to rename them.
 
 Restore on `session_start` reads the persisted entry first and falls back to message `details` from older sessions, so pre-existing conversations still come back in the right mode.
 

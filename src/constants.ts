@@ -1,10 +1,11 @@
 import { ModeConfig, WebTool, WriteTool } from "./types";
 
 /**
- * Configuration for the default modes for the agent. Each mode has a name, a set of permissions, and a description. The permissions determine which tools the agent can access in that mode.
+ * The built-in modes for the agent. Each mode has a name, a set of permissions, and a description. The permissions determine which tools the agent can access in that mode.
  * The description provides context for the mode's intended use case.
+ * User-defined modes from pi-mode-manager.json are merged on top of these (see src/config.ts).
  */
-export const MODE_CONFIG: ModeConfig[] = [
+export const BUILT_IN_MODES: ModeConfig[] = [
   {
     name: "plan",
     permissions: ["read", "web"],
@@ -52,8 +53,14 @@ export const WEB_TOOLS: WebTool[] = [
 export const LOGGER_KEY = "pi-mode-manager";
 export const LOGGER_PREFIX = `[${LOGGER_KEY}]`;
 
+/**
+ * The name of the optional JSON file, read from pi's agents directory, that
+ * lets users define additional modes (see src/config.ts).
+ */
+export const MODES_FILE_NAME = `${LOGGER_KEY}.json`;
+
 export const UI_KEY = "pi-mode__";
-export const DEFAULT_MODE: string = MODE_CONFIG[0].name;
+export const DEFAULT_MODE: string = BUILT_IN_MODES[0].name;
 
 export const MODE_DATA_KEY = "pi-mode-manager-mode";
 export const MODE_CHANGED_EVENT = "pi-mode-manager:mode-changed";

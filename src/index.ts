@@ -3,22 +3,44 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 
+import { loadUserModes } from "./config";
 import { createToolManager } from "./tools";
 import { ToolManagerState } from "./types";
 import {
+  BUILT_IN_MODES,
   DEFAULT_MODE,
   LOGGER_PREFIX,
-  MODE_CONFIG,
   MODE_DATA_KEY,
   UI_KEY,
 } from "./constants";
-import { isValidMode, getHelpText, getValidModeNames } from "./utils";
+import {
+  isValidMode,
+  getHelpText,
+  getModeWidgetLines,
+  getValidModeNames,
+} from "./utils";
 
-export default function (pi: ExtensionAPI) {
-  const toolManager = createToolManager();
+export default async function (pi: ExtensionAPI) {
+  // Load user-defined modes from pi-mode-manager.json in the agents dir.
+  // Built-in modes are always present; user modes are additive on top.
+  const { modes: userModes, errors: configErrors } = await loadUserModes();
+
+  for (const error of configErrors) {
+    console.warn(`${LOGGER_PREFIX} ${error}`);
+  }
+
+  const modes = [...BUILT_IN_MODES, ...userModes];
+  const toolManager = createToolManager(modes);
 
   // Initialize state on start
   pi.on("session_start", async (_, ctx) => {
+    if (configErrors.length > 0) {
+      ctx.ui.notify(
+        `${LOGGER_PREFIX} ${configErrors.length} problem(s) in pi-mode-manager.json; affected modes were skipped`,
+        "error",
+      );
+    }
+
     // Start from the most recent mode in the session history, if available
     const entries = [...ctx.sessionManager.getBranch()].reverse();
 
@@ -30,7 +52,7 @@ export default function (pi: ExtensionAPI) {
       const possibleState = entry.data as Partial<ToolManagerState>;
       const mode = possibleState?.currentMode;
 
-      if (mode && isValidMode(mode)) {
+      if (mode && isValidMode(mode, modes)) {
         setMode(mode, ctx);
 
         return;
@@ -52,19 +74,17 @@ export default function (pi: ExtensionAPI) {
     description: "Learn about PiModeManager and its modes",
 
     handler: async (_, ctx) => {
-      ctx.ui.notify(getHelpText(), "info");
+      ctx.ui.notify(getHelpText(modes), "info");
     },
   });
 
   pi.registerCommand("mode", {
-    description: "Manage modes ".concat(
-      MODE_CONFIG.map((m) => m.name).join("/"),
-    ),
+    description: "Manage modes ".concat(modes.map((m) => m.name).join("/")),
 
     getArgumentCompletions: async (partial: string) => {
       return new Promise((resolve) =>
         resolve(
-          getValidModeNames(partial)
+          getValidModeNames(modes, partial)
             .filter((mode) => mode.startsWith(partial.toLowerCase()))
             .map((mode) => ({ label: mode, value: mode })),
         ),
@@ -85,7 +105,7 @@ export default function (pi: ExtensionAPI) {
         }
 
         const requested = args.trim().toLowerCase();
-        if (!isValidMode(requested)) {
+        if (!isValidMode(requested, modes)) {
           listValidModes(ctx);
 
           return;
@@ -110,9 +130,12 @@ export default function (pi: ExtensionAPI) {
     ctx.ui.notify(`${LOGGER_PREFIX} Switched to ${mode} mode`, "info");
 
     ctx.ui.setWidget(UI_KEY, undefined, { placement: "aboveEditor" });
-    ctx.ui.setWidget(UI_KEY, [`Mode: ${mode}`], {
-      placement: "aboveEditor",
-    });
+
+    ctx.ui.setWidget(
+      UI_KEY,
+      getModeWidgetLines(toolManager.getCurrentModeConfig(), ctx.ui.theme),
+      { placement: "aboveEditor" },
+    );
 
     if (ctx.isIdle()) return;
 
@@ -124,7 +147,7 @@ export default function (pi: ExtensionAPI) {
 
   function listValidModes(ctx: ExtensionContext, toolName?: string) {
     ctx.ui.notify(
-      `${LOGGER_PREFIX} Valid modes: ${getValidModeNames(toolName).join(", ")}`,
+      `${LOGGER_PREFIX} Valid modes: ${getValidModeNames(modes, toolName).join(", ")}`,
       "info",
     );
   }

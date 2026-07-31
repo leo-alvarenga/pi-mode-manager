@@ -1,18 +1,16 @@
-import {
-  LOGGER_PREFIX,
-  MODE_CONFIG,
-  WEB_TOOLS,
-  WRITE_TOOLS,
-} from "./constants";
+import type { Theme } from "@earendil-works/pi-coding-agent";
+
+import { LOGGER_PREFIX, WEB_TOOLS, WRITE_TOOLS } from "./constants";
 import { ModeConfig, WebTool, WriteTool } from "./types";
 
 /**
- * Checks if the provided mode is valid based on the MODE_CONFIG
+ * Checks if the provided mode is valid for the given mode configuration
  * @param mode - The mode to validate
+ * @param modes - The available mode configurations
  * @returns boolean indicating if the mode is valid
  */
-export function isValidMode(mode: string): boolean {
-  return MODE_CONFIG.some((m) => m.name === mode.toLowerCase());
+export function isValidMode(mode: string, modes: ModeConfig[]): boolean {
+  return modes.some((m) => m.name === mode.toLowerCase());
 }
 
 /**
@@ -35,14 +33,18 @@ export function isToolAllowed(tool: string, mode: ModeConfig): boolean {
 
 /**
  * Returns a string of valid mode names, optionally filtered by a tool name
+ * @param modes - The available mode configurations
  * @param toolName - Optional tool name to filter valid modes
  * @returns string list of valid mode names
  */
-export function getValidModeNames(toolName?: string): string[] {
-  let modesWithTool: ModeConfig[] = MODE_CONFIG;
+export function getValidModeNames(
+  modes: ModeConfig[],
+  toolName?: string,
+): string[] {
+  let modesWithTool: ModeConfig[] = modes;
 
   if (toolName?.length) {
-    modesWithTool = MODE_CONFIG.filter((m) => isToolAllowed(toolName, m));
+    modesWithTool = modes.filter((m) => isToolAllowed(toolName, m));
   }
 
   return modesWithTool.map((m) => m.name);
@@ -62,10 +64,28 @@ export function getAllowedTools(
 }
 
 /**
+ * Builds the widget lines shown above the editor for the current mode.
+ * Renders the mode name as an accent-colored pill on the theme's selected
+ * background, followed by a dimmed, truncated description.
+ * @param mode - The current mode configuration
+ * @param theme - The active pi theme (ctx.ui.theme)
+ * @returns widget lines, using theme tokens so they adapt to dark/light themes
+ */
+export function getModeWidgetLines(mode: ModeConfig, theme: Theme): string[] {
+  const pill = theme.bg(
+    "selectedBg",
+    theme.fg("accent", theme.bold(` ◆ ${mode.name} `)),
+  );
+
+  return [pill];
+}
+
+/**
  * Returns a help text string that describes the PiModeManager, available modes, permissions, and usage instructions
+ * @param modes - The available mode configurations
  * @returns string help text
  */
-export function getHelpText(): string {
+export function getHelpText(modes: ModeConfig[]): string {
   return `
 # ${LOGGER_PREFIX}
 
@@ -75,7 +95,7 @@ Use the \`mode\` command to switch between modes and control the agent's capabil
 The current mode is displayed above the editor for easy reference.
 
 ### Available modes:
-${MODE_CONFIG.map((m) => `- ${m.name} (permissions: ${m.permissions.join(", ")})`).join("\n")}
+${modes.map((m) => `- ${m.name} (permissions: ${m.permissions.join(", ")})`).join("\n")}
 
 ### Permissions:
 - **read**: Allows the agent to read files and access information.

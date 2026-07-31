@@ -4,7 +4,6 @@ import {
   DEFAULT_MODE,
   LOGGER_PREFIX,
   MODE_CHANGED_EVENT,
-  MODE_CONFIG,
   MODE_DATA_KEY,
 } from "./constants";
 import { getAllowedTools } from "./utils";
@@ -14,10 +13,17 @@ import type { ModeConfig, ToolManagerState } from "./types";
  * ToolManager class manages the current mode and allowed tools based on the mode configuration
  */
 export class ToolManager {
+  private readonly modes: ModeConfig[];
+
   private hasInitialized: boolean = false;
 
   private currentMode: string = DEFAULT_MODE;
-  private currentModeConfig: ModeConfig = MODE_CONFIG[0];
+  private currentModeConfig: ModeConfig;
+
+  constructor(modes: ModeConfig[]) {
+    this.modes = modes;
+    this.currentModeConfig = modes[0];
+  }
 
   private allTools: string[] = [];
   private deniedToolsSet: Set<string> = new Set();
@@ -30,7 +36,7 @@ export class ToolManager {
 
     this.currentMode = DEFAULT_MODE;
     this.currentModeConfig =
-      MODE_CONFIG.find((m) => m.name === this.currentMode) || MODE_CONFIG[0];
+      this.modes.find((m) => m.name === this.currentMode) || this.modes[0];
 
     this.allTools = [...pi.getAllTools().map((tool) => tool.name)];
   }
@@ -44,7 +50,7 @@ export class ToolManager {
 
     this.currentMode = mode;
     this.currentModeConfig =
-      MODE_CONFIG.find((m) => m.name === this.currentMode) || MODE_CONFIG[0];
+      this.modes.find((m) => m.name === this.currentMode) || this.modes[0];
 
     this.updateAllowedTools();
 
@@ -125,7 +131,7 @@ export class ToolManager {
   }
 
   private isValidMode(mode: string): boolean {
-    return MODE_CONFIG.some((m) => m.name === mode.toLowerCase());
+    return this.modes.some((m) => m.name === mode.toLowerCase());
   }
 }
 
@@ -133,6 +139,6 @@ export class ToolManager {
  * Factory function to create a new instance of ToolManager
  * @returns ToolManager instance
  */
-export function createToolManager(): ToolManager {
-  return new ToolManager();
+export function createToolManager(modes: ModeConfig[]): ToolManager {
+  return new ToolManager(modes);
 }
