@@ -23,7 +23,11 @@ import {
 export default async function (pi: ExtensionAPI) {
   // Load user-defined modes from pi-mode-manager.json in the agents dir.
   // Built-in modes are always present; user modes are additive on top.
-  const { modes: userModes, errors: configErrors } = await loadUserModes();
+  const {
+    modes: userModes,
+    showWidget,
+    errors: configErrors,
+  } = await loadUserModes();
 
   for (const error of configErrors) {
     console.warn(`${LOGGER_PREFIX} ${error}`);
@@ -129,13 +133,17 @@ export default async function (pi: ExtensionAPI) {
 
     ctx.ui.notify(`${LOGGER_PREFIX} Switched to ${mode} mode`, "info");
 
+    // Widget is opt-in via the `showWidget` config key; always clear it on
+    // disable so a stale pill never lingers.
     ctx.ui.setWidget(UI_KEY, undefined, { placement: "aboveEditor" });
 
-    ctx.ui.setWidget(
-      UI_KEY,
-      getModeWidgetLines(toolManager.getCurrentModeConfig(), ctx.ui.theme),
-      { placement: "aboveEditor" },
-    );
+    if (showWidget) {
+      ctx.ui.setWidget(
+        UI_KEY,
+        getModeWidgetLines(toolManager.getCurrentModeConfig(), ctx.ui.theme),
+        { placement: "aboveEditor" },
+      );
+    }
 
     if (ctx.isIdle()) return;
 
