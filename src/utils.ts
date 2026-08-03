@@ -73,31 +73,6 @@ export function getAllowedTools(
 }
 
 /**
- * Builds the widget lines shown above the editor for the current mode.
- * Renders the mode name as a pill on the theme's selected background,
- * colored with the mode's `color` token (default `accent`). Invalid
- * colors are caught and fall back to `accent` so a bad config entry can
- * never crash the widget.
- * @param mode - The current mode configuration
- * @param theme - The active pi theme (ctx.ui.theme)
- * @returns widget lines, using theme tokens so they adapt to dark/light themes
- */
-export function getModeWidgetLines(mode: ModeConfig, theme: Theme): string[] {
-  const label = theme.bold(
-    ` ${mode.icon ?? DEFAULT_MODE_ICON} ${capitalize(mode.name)} `,
-  );
-
-  let pill: string;
-  try {
-    pill = theme.bg("selectedBg", theme.fg(mode.color ?? "accent", label));
-  } catch {
-    pill = theme.bg("selectedBg", theme.fg("accent", label));
-  }
-
-  return [pill];
-}
-
-/**
  * Returns a help text string that describes the PiModeManager, available modes, permissions, and usage instructions
  * @param modes - The available mode configurations
  * @returns string help text

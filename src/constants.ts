@@ -61,7 +61,6 @@ export const LOGGER_PREFIX = `[${LOGGER_KEY}]`;
  */
 export const MODES_FILE_NAME = `${LOGGER_KEY}.json`;
 
-export const UI_KEY = "pi-mode__";
 export const DEFAULT_MODE: string = BUILT_IN_MODES[0].name;
 
 export const MODE_DATA_KEY = "pi-mode-manager-mode";

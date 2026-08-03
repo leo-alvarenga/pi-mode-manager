@@ -12,7 +12,6 @@ Without something like this, the agent gets every tool it registered, and "can y
 - On session start it restores the last mode used in that session, falling back to `plan` when there's nothing to go on
 - Tools that don't match the current mode are disabled through `setActiveTools()`, so the agent can't even call them
 - A short mode briefing is injected into the system prompt, so the model knows what it's allowed to do
-- The active mode is shown in a widget above the editor as a colored pill — its `icon` (default `◆`) and `color` (default `accent`) control the appearance
 
 ## Installation
 
@@ -76,7 +75,6 @@ Rules:
 - User modes are **additive**: the built-in `plan` and `build` modes are always present and cannot be overridden or removed.
 - Mode names must be `[a-z0-9_-]` and unique — duplicates (including built-in names) are skipped.
 - Invalid entries — broken JSON, unknown permissions, missing descriptions — are skipped with a warning; the rest still load.
-- The built-in modes live in `src/constants.ts` (`BUILT_IN_MODES`); loading and validation live in `src/config.ts`.
 - Changes take effect after restarting pi or running `/reload`.
 
 Which tool names count as `write` or `web` is decided by the `WRITE_TOOLS` and `WEB_TOOLS` lists in `src/constants.ts`. Anything not in either list is treated as read-only and always allowed.

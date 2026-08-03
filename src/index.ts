@@ -11,14 +11,8 @@ import {
   DEFAULT_MODE,
   LOGGER_PREFIX,
   MODE_DATA_KEY,
-  UI_KEY,
 } from "./constants";
-import {
-  isValidMode,
-  getHelpText,
-  getModeWidgetLines,
-  getValidModeNames,
-} from "./utils";
+import { isValidMode, getHelpText, getValidModeNames } from "./utils";
 
 export default async function (pi: ExtensionAPI) {
   // Load user-defined modes from pi-mode-manager.json in the agents dir.
@@ -129,16 +123,7 @@ export default async function (pi: ExtensionAPI) {
 
     ctx.ui.notify(`${LOGGER_PREFIX} Switched to ${mode} mode`, "info");
 
-    ctx.ui.setWidget(UI_KEY, undefined, { placement: "aboveEditor" });
-
-    ctx.ui.setWidget(
-      UI_KEY,
-      getModeWidgetLines(toolManager.getCurrentModeConfig(), ctx.ui.theme),
-      { placement: "aboveEditor" },
-    );
-
     if (ctx.isIdle()) return;
-
     ctx.ui.notify(
       `${LOGGER_PREFIX} New mode will take effect after the current interaction has completed`,
       "info",
