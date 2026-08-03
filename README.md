@@ -56,7 +56,6 @@ No source changes needed. Drop a `pi-mode-manager.json` file into pi's agents di
 
 ```json
 {
-  "showWidget": true,
   "modes": [
     {
       "name": "review",
@@ -70,7 +69,7 @@ No source changes needed. Drop a `pi-mode-manager.json` file into pi's agents di
 }
 ```
 
-The top-level `showWidget` key (default `false`) turns the mode pill above the editor on or off. Each entry is a name, a description, and a permission list (`read`, `write`, `web`), plus three optional fields: `extraInstructions` (appended to the mode briefing), `icon` (a glyph shown in the widget pill, default `◆`), and `color` (a pi theme token that colors the pill, default `accent` — e.g. `success`, `warning`, `error`, `muted`, `dim`, `text`). The built-in `plan` and `build` modes use `accent` and `warning` respectively. Command completion, the help text, and the prompt injection all derive from the merged table, so a new mode mostly writes itself.
+Each entry is a name, a description, and a permission list (`read`, `write`, `web`), plus three optional fields: `extraInstructions` (appended to the mode briefing), `icon` (a glyph shown in the widget pill, default `◆`), and `color` (a pi theme token that colors the pill, default `accent` — e.g. `success`, `warning`, `error`, `muted`, `dim`, `text`). The built-in `plan` and `build` modes use `accent` and `warning` respectively. Command completion, the help text, and the prompt injection all derive from the merged table, so a new mode mostly writes itself.
 
 Rules:
 

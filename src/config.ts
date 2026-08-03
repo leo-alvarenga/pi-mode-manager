@@ -3,15 +3,13 @@ import { join } from "node:path";
 
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
-import { BUILT_IN_MODES, DEFAULT_SHOW_WIDGET, MODES_FILE_NAME } from "./constants";
+import { BUILT_IN_MODES, MODES_FILE_NAME } from "./constants";
 import { ModeConfig, Permission } from "./types";
 
 const VALID_PERMISSIONS: readonly Permission[] = ["read", "write", "web"];
 
 export type LoadedUserModes = {
   modes: ModeConfig[];
-  /** Whether the mode widget should be shown above the editor (default: off). */
-  showWidget: boolean;
   errors: string[];
 };
 
@@ -42,12 +40,11 @@ export async function loadUserModes(): Promise<LoadedUserModes> {
     raw = await readFile(filePath, "utf8");
   } catch (err: unknown) {
     if (isErrorWithCode(err, "ENOENT")) {
-      return { modes: [], showWidget: DEFAULT_SHOW_WIDGET, errors: [] };
+      return { modes: [], errors: [] };
     }
 
     return {
       modes: [],
-      showWidget: DEFAULT_SHOW_WIDGET,
       errors: [`Could not read ${filePath}: ${errorMessage(err)}`],
     };
   }
@@ -55,36 +52,24 @@ export async function loadUserModes(): Promise<LoadedUserModes> {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return {
-      modes: [],
-      showWidget: DEFAULT_SHOW_WIDGET,
-      errors: [`${filePath} is not valid JSON`],
-    };
+    return { modes: [], errors: [`${filePath} is not valid JSON`] };
   }
 
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     return {
       modes: [],
-      showWidget: DEFAULT_SHOW_WIDGET,
       errors: [`${filePath} must contain an object, e.g. { "modes": [...] }`],
     };
   }
 
-  const raw = parsed as Record<string, unknown>;
-  const settings = validateSettings(raw, filePath);
-
-  const rawModes = raw.modes;
+  const rawModes = (parsed as Record<string, unknown>).modes;
   if (rawModes === undefined) {
     // Empty config file: nothing to add.
-    return { modes: [], showWidget: settings.showWidget, errors: settings.errors };
+    return { modes: [], errors: [] };
   }
 
   if (!Array.isArray(rawModes)) {
-    return {
-      modes: [],
-      showWidget: settings.showWidget,
-      errors: [...settings.errors, `${filePath}: "modes" must be an array`],
-    };
+    return { modes: [], errors: [`${filePath}: "modes" must be an array`] };
   }
 
   const modes: ModeConfig[] = [];
@@ -102,30 +87,7 @@ export async function loadUserModes(): Promise<LoadedUserModes> {
     }
   });
 
-  return { modes, showWidget: settings.showWidget, errors: [...settings.errors, ...errors] };
-}
-
-/**
- * Validate the top-level (non-mode) settings from the config file. Unknown
- * keys are ignored; the widget flag must be a boolean when present.
- */
-function validateSettings(
-  raw: Record<string, unknown>,
-  filePath: string,
-): { showWidget: boolean; errors: string[] } {
-  const showWidget = raw.showWidget;
-  if (showWidget === undefined) {
-    return { showWidget: DEFAULT_SHOW_WIDGET, errors: [] };
-  }
-
-  if (typeof showWidget !== "boolean") {
-    return {
-      showWidget: DEFAULT_SHOW_WIDGET,
-      errors: [`${filePath}: "showWidget" must be a boolean`],
-    };
-  }
-
-  return { showWidget, errors: [] };
+  return { modes, errors };
 }
 
 /**

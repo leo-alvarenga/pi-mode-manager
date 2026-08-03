@@ -61,12 +61,6 @@ export const LOGGER_PREFIX = `[${LOGGER_KEY}]`;
  */
 export const MODES_FILE_NAME = `${LOGGER_KEY}.json`;
 
-/**
- * Whether the mode pill widget is shown above the editor. Opt-in via the
- * `showWidget` key in pi-mode-manager.json; disabled by default.
- */
-export const DEFAULT_SHOW_WIDGET = false;
-
 export const UI_KEY = "pi-mode__";
 export const DEFAULT_MODE: string = BUILT_IN_MODES[0].name;
 
