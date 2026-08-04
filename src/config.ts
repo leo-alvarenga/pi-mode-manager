@@ -1,9 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, ThemeColor } from "@earendil-works/pi-coding-agent";
 
-import { BUILT_IN_MODES, MODES_FILE_NAME } from "./constants";
+import {
+  BUILT_IN_MODES,
+  DEFAULT_MODE_ICON,
+  MODES_FILE_NAME,
+} from "./constants";
 import { ModeConfig, Permission } from "./types";
 
 const VALID_PERMISSIONS: readonly Permission[] = ["read", "write", "web"];
@@ -151,24 +155,36 @@ function validateMode(entry: unknown, usedNames: Set<string>): ModeValidation {
     extraInstructions = raw.extraInstructions;
   }
 
-  if (raw.icon && typeof raw.icon !== "string") {
-    return {
-      ok: false,
-      error: `mode "${name}" has a non-string "icon"`,
-    };
+  let icon = DEFAULT_MODE_ICON;
+  if (raw.icon !== undefined) {
+    if (typeof raw.icon !== "string") {
+      return {
+        ok: false,
+        error: `mode "${name}" has a non-string "icon"`,
+      };
+    }
+
+    icon = raw.icon;
   }
 
-  if (raw.color && typeof raw.color !== "string") {
-    return {
-      ok: false,
-      error: `mode "${name}" has a non-string "color"`,
-    };
+  let color: string | undefined;
+  if (raw.color !== undefined) {
+    if (typeof raw.color !== "string") {
+      return {
+        ok: false,
+        error: `mode "${name}" has a non-string "color"`,
+      };
+    }
+
+    color = raw.color;
   }
 
   return {
     ok: true,
     mode: {
+      icon,
       name,
+      color: color as ThemeColor,
       description: description.trim(),
       permissions,
       extraInstructions,

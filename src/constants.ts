@@ -7,6 +7,7 @@ import { ModeConfig, WebTool, WriteTool } from "./types";
  */
 export const BUILT_IN_MODES: ModeConfig[] = [
   {
+    icon: "◆",
     name: "plan",
     color: "accent",
     permissions: ["read", "web"],
@@ -19,6 +20,7 @@ The agent should only read files and access web tools for research purposes.
 `,
   },
   {
+    icon: "◆",
     name: "build",
     color: "warning",
     permissions: ["read", "write"],

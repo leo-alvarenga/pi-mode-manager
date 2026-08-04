@@ -12,7 +12,13 @@ import {
   LOGGER_PREFIX,
   MODE_DATA_KEY,
 } from "./constants";
-import { isValidMode, getHelpText, getValidModeNames } from "./utils";
+import {
+  isValidMode,
+  getHelpText,
+  getValidModeNames,
+  getValidModes,
+  capitalize,
+} from "./utils";
 
 export default async function (pi: ExtensionAPI) {
   // Load user-defined modes from pi-mode-manager.json in the agents dir.
@@ -78,9 +84,20 @@ export default async function (pi: ExtensionAPI) {
     getArgumentCompletions: async (partial: string) => {
       return new Promise((resolve) =>
         resolve(
-          getValidModeNames(modes, partial)
-            .filter((mode) => mode.startsWith(partial.toLowerCase()))
-            .map((mode) => ({ label: mode, value: mode })),
+          getValidModes(modes, partial)
+            .filter(({ name }) => name.startsWith(partial.toLowerCase()))
+            .map(({ icon, name }) => {
+              let label = capitalize(name);
+
+              if (icon) {
+                label = `${icon} ${label}`;
+              }
+
+              return {
+                label,
+                value: name,
+              };
+            }),
         ),
       );
     },

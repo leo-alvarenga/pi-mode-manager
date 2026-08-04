@@ -44,19 +44,32 @@ export function isToolAllowed(tool: string, mode: ModeConfig): boolean {
  * Returns a string of valid mode names, optionally filtered by a tool name
  * @param modes - The available mode configurations
  * @param toolName - Optional tool name to filter valid modes
- * @returns string list of valid mode names
+ * @returns ModeConfig[] list of valid modes
  */
-export function getValidModeNames(
+export function getValidModes(
   modes: ModeConfig[],
   toolName?: string,
-): string[] {
+): ModeConfig[] {
   let modesWithTool: ModeConfig[] = modes;
 
   if (toolName?.length) {
     modesWithTool = modes.filter((m) => isToolAllowed(toolName, m));
   }
 
-  return modesWithTool.map((m) => m.name);
+  return modesWithTool;
+}
+
+/**
+ * Returns a string of valid mode names, optionally filtered by a tool name
+ * @param modes - The available mode configurations
+ * @param toolName - Optional tool name to filter valid modes
+ * @returns string list of valid mode names
+ */
+export function getValidModeNames(
+  modes: ModeConfig[],
+  toolName?: string,
+): string[] {
+  return getValidModes(modes, toolName).map((m) => m.name);
 }
 
 /**
