@@ -43,6 +43,7 @@ export default async function (pi: ExtensionAPI) {
 
     // Start from the most recent mode in the session history, if available
     const entries = [...ctx.sessionManager.getBranch()].reverse();
+    let mode: string | undefined = undefined;
 
     for (const entry of entries) {
       if (entry.type !== "custom" || entry.customType !== MODE_DATA_KEY) {
@@ -50,16 +51,15 @@ export default async function (pi: ExtensionAPI) {
       }
 
       const possibleState = entry.data as Partial<ToolManagerState>;
-      const mode = possibleState?.currentMode;
 
       if (mode && isValidMode(mode, modes)) {
-        setMode(mode, ctx);
+        mode = possibleState?.currentMode;
 
-        return;
+        break;
       }
     }
 
-    setMode(DEFAULT_MODE, ctx);
+    setMode(mode || DEFAULT_MODE, ctx, true);
   });
 
   // Add pre-prompt instructions based on the current mode
@@ -130,13 +130,13 @@ export default async function (pi: ExtensionAPI) {
   });
 
   // Helper functions
-  function setMode(mode: string, ctx?: ExtensionContext) {
+  function setMode(mode: string, ctx?: ExtensionContext, silent = false) {
     toolManager.setMode(mode, pi);
 
     // Set the active tools based on the current mode's permissions
     pi.setActiveTools(toolManager.getAllowedTools());
 
-    if (!ctx) return;
+    if (!ctx || silent) return;
 
     ctx.ui.notify(`${LOGGER_PREFIX} Switched to ${mode} mode`, "info");
 
