@@ -154,7 +154,8 @@ ${logger.bold(logger.fg("accent", "> Permissions"))}
   - ${permissionToString("web", logger)}: Allows the agent to access web tools for searching and fetching data
 
 ${logger.bold(logger.fg("accent", "> Usage"))}
-  - ${logger.fg("success", "read")}: Allows the agent to read files and access information
+  - To see all available modes: \`mode\`
   - To switch modes: \`mode <mode_name>\`
+  - To see this menu: \`mode_help\`
 `;
 }
