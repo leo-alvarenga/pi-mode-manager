@@ -6,12 +6,7 @@ import type {
 import { loadUserModes } from "./config";
 import { createToolManager } from "./tools";
 import { ToolManagerState } from "./types";
-import {
-  BUILT_IN_MODES,
-  DEFAULT_MODE,
-  LOGGER_PREFIX,
-  MODE_DATA_KEY,
-} from "./constants";
+import { BUILT_IN_MODES, DEFAULT_MODE, MODE_DATA_KEY } from "./constants";
 import {
   isValidMode,
   getHelpText,
@@ -19,24 +14,25 @@ import {
   getValidModes,
   capitalize,
 } from "./utils";
+import { createLogger, Logger } from "./logger";
 
 export default async function (pi: ExtensionAPI) {
   // Load user-defined modes from pi-mode-manager.json in the agents dir.
   // Built-in modes are always present; user modes are additive on top.
   const { modes: userModes, errors: configErrors } = await loadUserModes();
 
-  for (const error of configErrors) {
-    console.warn(`${LOGGER_PREFIX} ${error}`);
-  }
+  let logger: Logger;
 
   const modes = [...BUILT_IN_MODES, ...userModes];
   const toolManager = createToolManager(modes);
 
   // Initialize state on start
   pi.on("session_start", async (_, ctx) => {
+    logger = createLogger(ctx);
+
     if (configErrors.length > 0) {
-      ctx.ui.notify(
-        `${LOGGER_PREFIX} ${configErrors.length} problem(s) in pi-mode-manager.json; affected modes were skipped`,
+      logger.log(
+        `${configErrors.length} problem(s) in pi-mode-manager.json; affected modes were skipped`,
         "error",
       );
     }
@@ -73,8 +69,8 @@ export default async function (pi: ExtensionAPI) {
   pi.registerCommand("mode_help", {
     description: "Learn about PiModeManager and its modes",
 
-    handler: async (_, ctx) => {
-      ctx.ui.notify(getHelpText(modes), "info");
+    handler: async () => {
+      logger.log(getHelpText(modes, logger), "info");
     },
   });
 
@@ -105,26 +101,23 @@ export default async function (pi: ExtensionAPI) {
     handler: async (args: string | undefined, ctx) => {
       try {
         if (!args) {
-          ctx.ui.notify(
-            `${LOGGER_PREFIX} Current mode: ${toolManager.getCurrentMode()}`,
-            "info",
-          );
+          logger.log(`Current mode: ${toolManager.getCurrentMode()}`, "info");
 
-          listValidModes(ctx);
+          listValidModes();
 
           return;
         }
 
         const requested = args.trim().toLowerCase();
         if (!isValidMode(requested, modes)) {
-          listValidModes(ctx);
+          listValidModes();
 
           return;
         }
 
         setMode(requested, ctx);
       } catch (e) {
-        ctx.ui.notify(`Failed to switch mode: ${e}`, "error");
+        logger.log(`Failed to switch mode: ${e}`, "error");
       }
     },
   });
@@ -137,19 +130,22 @@ export default async function (pi: ExtensionAPI) {
     pi.setActiveTools(toolManager.getAllowedTools());
 
     if (!ctx || silent) return;
+    const { name } = toolManager.getCurrentModeConfig();
 
-    ctx.ui.notify(`${LOGGER_PREFIX} Switched to ${mode} mode`, "info");
+    let label = logger.fg("accent", capitalize(name));
+
+    logger.log(`Now in "${label}" mode`, "info");
 
     if (ctx.isIdle()) return;
-    ctx.ui.notify(
-      `${LOGGER_PREFIX} New mode will take effect after the current interaction has completed`,
+    logger.log(
+      "New mode will take effect after the current interaction has completed",
       "info",
     );
   }
 
-  function listValidModes(ctx: ExtensionContext, toolName?: string) {
-    ctx.ui.notify(
-      `${LOGGER_PREFIX} Valid modes: ${getValidModeNames(modes, toolName).join(", ")}`,
+  function listValidModes(toolName?: string) {
+    logger.log(
+      `Valid modes: ${getValidModeNames(modes, toolName).join(", ")}`,
       "info",
     );
   }
