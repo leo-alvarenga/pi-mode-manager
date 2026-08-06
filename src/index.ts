@@ -18,12 +18,18 @@ import { createLogger, Logger } from "./logger";
 
 export default async function (pi: ExtensionAPI) {
   // Load user-defined modes from pi-mode-manager.json in the agents dir.
-  // Built-in modes are always present; user modes are additive on top.
+  // User modes can redefine the built-in `plan`/`build` modes (see below).
   const { modes: userModes, errors: configErrors } = await loadUserModes();
 
   let logger: Logger;
 
-  const modes = [...BUILT_IN_MODES, ...userModes];
+  // User modes go first so a redefinition of `plan`/`build` overrides the
+  // built-in; overridden built-ins are dropped from the tail to avoid dupes.
+  const userNames = new Set(userModes.map((m) => m.name));
+  const modes = [
+    ...userModes,
+    ...BUILT_IN_MODES.filter((m) => !userNames.has(m.name)),
+  ];
   const toolManager = createToolManager(modes);
 
   // Initialize state on start

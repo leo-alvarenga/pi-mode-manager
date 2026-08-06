@@ -76,15 +76,20 @@ export async function loadUserModes(): Promise<LoadedUserModes> {
     return { modes: [], errors: [`${filePath}: "modes" must be an array`] };
   }
 
-  const modes: ModeConfig[] = [];
+  let modes: ModeConfig[] = [];
   const errors: string[] = [];
   const usedNames = new Set<string>(BUILT_IN_MODES.map((m) => m.name));
 
   rawModes.forEach((entry, index) => {
-    const result = validateMode(entry, usedNames);
+    const result = validateMode(entry);
 
     if (result.ok) {
-      usedNames.add(result.mode.name);
+      if (usedNames.has(result.mode.name)) {
+        modes = modes.filter((m) => m.name !== result.mode.name);
+      } else {
+        usedNames.add(result.mode.name);
+      }
+
       modes.push(result.mode);
     } else {
       errors.push(`${filePath}: mode #${index + 1}: ${result.error}`);
@@ -101,7 +106,7 @@ export async function loadUserModes(): Promise<LoadedUserModes> {
  * merged, so prototype-polluting keys like "__proto__" cannot leak into the
  * resulting mode config
  */
-function validateMode(entry: unknown, usedNames: Set<string>): ModeValidation {
+function validateMode(entry: unknown): ModeValidation {
   if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
     return { ok: false, error: "mode is not an object" };
   }
@@ -109,7 +114,7 @@ function validateMode(entry: unknown, usedNames: Set<string>): ModeValidation {
   const raw = entry as Record<string, unknown>;
 
   const name = raw.name;
-  if (typeof name !== "string" || usedNames.has(name)) {
+  if (typeof name !== "string") {
     return { ok: false, error: `invalid name "${name}"` };
   }
 

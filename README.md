@@ -72,10 +72,10 @@ Each entry is a name, a description, and a permission list (`read`, `write`, `we
 
 Rules:
 
-- User modes are **additive**: the built-in `plan` and `build` modes are always present and cannot be overridden or removed.
-- Mode names must be `[a-z0-9_-]` and unique — duplicates (including built-in names) are skipped.
-- Invalid entries — broken JSON, unknown permissions, missing descriptions — are skipped with a warning; the rest still load.
-- Changes take effect after restarting pi or running `/reload`.
+- Redefining a mode named `plan` or `build` **overrides** the built-in of the same name — your description, permissions, icon, color, and `extraInstructions` replace the default. Any built-in you don't redefine keeps its usual behavior
+- Mode names must be `[a-z0-9_-]` and unique. Duplicate names in the same file resolve to the later entry; a name that matches a built-in replaces the built-in instead of producing a second copy of it
+- Invalid entries (broken JSON, unknown permissions, missing descriptions) are skipped with a warning; the rest still load
+- Changes take effect after restarting pi or running `/reload`
 
 Which tool names count as `write` or `web` is decided by the `WRITE_TOOLS` and `WEB_TOOLS` lists in `src/constants.ts`. Anything not in either list is treated as read-only and always allowed.
 
@@ -93,7 +93,7 @@ for (const entry of ctx.sessionManager.getBranch()) {
 }
 ```
 
-Push — changes are emitted on the `pi-mode:changed` channel of the inter-extension event bus (`pi.events`):
+Push: changes are emitted on the `pi-mode:changed` channel of the inter-extension event bus (`pi.events`):
 
 ```ts
 pi.events.on("pi-mode-manager:mode-changed", ({ mode, previousMode }) => {
