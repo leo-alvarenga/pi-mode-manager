@@ -3,21 +3,11 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "declaration": true,
-    "declarationMap": true,
-    "skipLibCheck": true,
     "strict": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": [
-        "src/**
-      ]
-    },
+    "skipLibCheck": true,
+    "noEmit": true,
     "types": [],
-    "outDir": "dist/types",
-    "rootDir": "extensionsensions",
-    "composite": true
+    "rootDir": "src"
   },
-  "include": ["extensionsensions"]
+  "include": ["src"]
 }
-

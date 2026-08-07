@@ -1,7 +1,7 @@
 {
-  "name": "pi-mode-manager",
-  "version": "0.6.0",
-  "description": "A package for managing modes in Pi",
+  "name": "pi-agent-manager",
+  "version": "0.7.0",
+  "description": "A package for managing agents in Pi",
   "keywords": [
     "pi-package",
     "pi"
@@ -9,9 +9,19 @@
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"
   },
+  "dependencies": {
+    "@earendil-works/pi-tui": "^0.83.0"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
   "pi": {
     "extensions": [
       "./src/index.ts"
     ]
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
   }
 }

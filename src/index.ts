@@ -1,36 +1,47 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
+import {
+  DynamicBorder,
+  type ExtensionAPI,
+  type ExtensionCommandContext,
+  type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 
-import { loadUserModes } from "./config";
-import { createToolManager } from "./tools";
-import { ToolManagerState } from "./types";
-import { BUILT_IN_MODES, DEFAULT_MODE, MODE_DATA_KEY } from "./constants";
 import {
-  isValidMode,
+  Container,
+  type SelectItem,
+  SelectList,
+  Text,
+} from "@earendil-works/pi-tui";
+
+import { loadUserAgents } from "./config";
+import { createAgentManager } from "./tools";
+import { AgentState } from "./types";
+import { BUILT_IN_AGENTS, DEFAULT_AGENT, AGENT_DATA_KEY } from "./constants";
+import {
+  isValidAgent,
   getHelpText,
-  getValidModeNames,
-  getValidModes,
+  getValidAgentNames,
+  getPermissionBadges,
   capitalize,
 } from "./utils";
 import { createLogger, Logger } from "./logger";
 
 export default async function (pi: ExtensionAPI) {
-  // Load user-defined modes from pi-mode-manager.json in the agents dir.
-  // User modes can redefine the built-in `plan`/`build` modes (see below).
-  const { modes: userModes, errors: configErrors } = await loadUserModes();
+  // Load user-defined agents from pi-agent-manager.json in the agents dir.
+  // User agents can redefine the built-in `plan`/`build` agents (see below).
+  const { agents: userAgents, errors: configErrors } = await loadUserAgents();
 
   let logger: Logger;
 
-  // User modes go first so a redefinition of `plan`/`build` overrides the
-  // built-in; overridden built-ins are dropped from the tail to avoid dupes.
-  const userNames = new Set(userModes.map((m) => m.name));
-  const modes = [
-    ...userModes,
-    ...BUILT_IN_MODES.filter((m) => !userNames.has(m.name)),
+  // Built-in agents come first so picker/completion/help order is stable, and
+  // user agents extend rather than displace them. A user agent that redefines
+  // a built-in (`plan`/`build`) still wins: the built-in of the same name is
+  // dropped by the filter below, so it never appears twice.
+  const userNames = new Set(userAgents.map((m) => m.name));
+  const agents = [
+    ...BUILT_IN_AGENTS.filter((m) => !userNames.has(m.name)),
+    ...userAgents,
   ];
-  const toolManager = createToolManager(modes);
+  const agentManager = createAgentManager(agents);
 
   // Initialize state on start
   pi.on("session_start", async (_, ctx) => {
@@ -38,121 +49,208 @@ export default async function (pi: ExtensionAPI) {
 
     if (configErrors.length > 0) {
       logger.log(
-        `${configErrors.length} problem(s) in pi-mode-manager.json; affected modes were skipped`,
+        `${configErrors.length} problem(s) in pi-agent-manager.json; affected agents were skipped`,
         "error",
       );
     }
 
-    // Start from the most recent mode in the session history, if available
+    // Start from the most recent agent in the session history, if available
     const entries = [...ctx.sessionManager.getBranch()].reverse();
-    let mode: string | undefined = undefined;
+    let agent: string | undefined = undefined;
 
     for (const entry of entries) {
-      if (entry.type !== "custom" || entry.customType !== MODE_DATA_KEY) {
+      if (entry.type !== "custom" || entry.customType !== AGENT_DATA_KEY) {
         continue;
       }
 
-      const possibleState = entry.data as Partial<ToolManagerState>;
+      const possibleState = entry.data as Partial<AgentState>;
 
-      if (mode && isValidMode(mode, modes)) {
-        mode = possibleState?.currentMode;
+      if (agent && isValidAgent(agent, agents)) {
+        agent = possibleState?.currentAgent;
 
         break;
       }
     }
 
-    setMode(mode || DEFAULT_MODE, ctx, true);
+    setAgent(agent || DEFAULT_AGENT, ctx, true);
   });
 
-  // Add pre-prompt instructions based on the current mode
+  // Add pre-prompt instructions based on the current agent
   pi.on("before_agent_start", async (event) => {
     return {
-      systemPrompt: event.systemPrompt + toolManager.getPrePromptInstructions(),
+      systemPrompt: event.systemPrompt + agentManager.getPrePromptInstructions(),
     };
   });
 
   // Commands
-  pi.registerCommand("mode_help", {
-    description: "Learn about PiModeManager and its modes",
+  pi.registerCommand("agents_help", {
+    description: "Learn about PiAgent and its agents/agents",
 
     handler: async () => {
-      logger.log(getHelpText(modes, logger), "info");
+      logger.log(getHelpText(agents, logger), "info");
     },
   });
 
-  pi.registerCommand("mode", {
-    description: "Manage modes ".concat(modes.map((m) => m.name).join("/")),
+  pi.registerCommand("agents", {
+    description: "Pick an agent (or switch by name)",
 
     getArgumentCompletions: async (partial: string) => {
       return new Promise((resolve) =>
         resolve(
-          getValidModes(modes, partial)
+          agents
             .filter(({ name }) => name.startsWith(partial.toLowerCase()))
-            .map(({ icon, name }) => {
-              let label = capitalize(name);
+            .map((agent) => {
+              let label = capitalize(agent.name);
 
-              if (icon) {
-                label = `${icon} ${label}`;
+              if (agent.icon) {
+                label = `${agent.icon} ${label}`;
               }
 
               return {
                 label,
-                value: name,
+                value: agent.name,
               };
             }),
         ),
       );
     },
 
-    handler: async (args: string | undefined, ctx) => {
+    handler: async (args: string | undefined, ctx: ExtensionCommandContext) => {
       try {
+        // No argument: open the interactive OpenCode-style agent picker.
         if (!args) {
-          logger.log(`Current mode: ${toolManager.getCurrentMode()}`, "info");
+          const chosen = await openAgentPicker(ctx);
 
-          listValidModes();
+          if (!chosen) {
+            return;
+          }
+
+          setAgent(chosen, ctx);
 
           return;
         }
 
         const requested = args.trim().toLowerCase();
-        if (!isValidMode(requested, modes)) {
-          listValidModes();
+        if (!isValidAgent(requested, agents)) {
+          listValidAgents();
+
+          logger.log(
+            `Unknown agent "${requested}". Use /agents to open the picker or pass a valid agent name.`,
+            "error",
+          );
 
           return;
         }
 
-        setMode(requested, ctx);
+        setAgent(requested, ctx);
       } catch (e) {
-        logger.log(`Failed to switch mode: ${e}`, "error");
+        logger.log(`Failed to switch agent: ${e}`, "error");
       }
     },
   });
 
-  // Helper functions
-  function setMode(mode: string, ctx?: ExtensionContext, silent = false) {
-    toolManager.setMode(mode, pi);
+  // Soft "ask" gate: when the current agent has the "ask" permission, every
+  // write/exec tool call is gated behind a user confirmation (OpenCode's
+  // "Plan = ask, not block" semantics). Tools stay active; the user can
+  // decline any single call.
+  pi.on("tool_call", async (event, ctx) => {
+    if (!agentManager.requiresConfirmation(event.toolName)) {
+      return;
+    }
 
-    // Set the active tools based on the current mode's permissions
-    pi.setActiveTools(toolManager.getAllowedTools());
+    const ok = await ctx.ui.confirm(
+      "Approval required",
+      `Allow \`${event.toolName}\` to run in "${agentManager.getCurrentAgent()}" agent?`,
+    );
+
+    if (ok) {
+      return;
+    }
+
+    return { block: true, reason: "Declined by the agent's ask permissions" };
+  });
+
+  async function openAgentPicker(
+    ctx: ExtensionCommandContext,
+  ): Promise<string | null> {
+    const current = agentManager.getCurrentAgent();
+
+    const items: SelectItem[] = agents.map((agent) => {
+      const isCurrent = agent.name === current;
+      const label = `${agent.icon ? agent.icon + " " : ""}${capitalize(agent.name)}${
+        isCurrent ? "  ● current" : ""
+      }`;
+      const description = `${getPermissionBadges(agent)}  ─  ${agent.description}`;
+
+      return { value: agent.name, label, description };
+    });
+
+    return ctx.ui.custom<string | null>((tui, theme, _kb, done) => {
+      const container = new Container();
+
+      container.addChild(new DynamicBorder((s) => theme.fg("accent", s)));
+
+      container.addChild(
+        new Text(theme.fg("accent", theme.bold("Select an agent")), 1, 0),
+      );
+
+      const selectList = new SelectList(items, Math.min(items.length, 10), {
+        selectedPrefix: (t) => theme.fg("accent", t),
+        selectedText: (t) => theme.fg("accent", t),
+        description: (t) => theme.fg("dim", t),
+        scrollInfo: (t) => theme.fg("dim", t),
+        noMatch: (t) => theme.fg("warning", t),
+      });
+
+      selectList.onSelect = (item) => done(item.value);
+      selectList.onCancel = () => done(null);
+      container.addChild(selectList);
+
+      container.addChild(
+        new Text(
+          theme.fg(
+            "dim",
+            "↑↓ navigate · enter select · esc cancel · type to filter",
+          ),
+          1,
+          0,
+        ),
+      );
+
+      container.addChild(
+        new DynamicBorder((s: string) => theme.fg("accent", s)),
+      );
+
+      return {
+        render: (w) => container.render(w),
+        invalidate: () => container.invalidate(),
+        handleInput: (data) => {
+          selectList.handleInput(data);
+          tui.requestRender();
+        },
+      };
+    });
+  }
+
+  // Helper functions
+  function setAgent(agent: string, ctx?: ExtensionContext, silent = false) {
+    agentManager.setAgent(agent, pi);
 
     if (!ctx || silent) return;
-    const { name } = toolManager.getCurrentModeConfig();
+    const { name } = agentManager.getCurrentAgentConfig();
 
     let label = logger.fg("accent", capitalize(name));
 
-    logger.log(`Now in "${label}" mode`, "info");
+    logger.log(`Agent set to ${label}`, "info");
 
     if (ctx.isIdle()) return;
     logger.log(
-      "New mode will take effect after the current interaction has completed",
+      "Agent change will take effect after the current interaction has completed",
       "info",
     );
   }
 
-  function listValidModes(toolName?: string) {
-    logger.log(
-      `Valid modes: ${getValidModeNames(modes, toolName).join(", ")}`,
-      "info",
-    );
+  function listValidAgents() {
+    logger.log(`Valid agents: ${getValidAgentNames(agents).join(", ")}`, "info");
   }
 }

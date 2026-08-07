@@ -3,15 +3,12 @@ import { ThemeColor } from "@earendil-works/pi-coding-agent";
 export type WriteTool =
   "write" | "edit" | "delete_file" | "bash" | "shell" | "run" | "exec";
 
-export type WebTool =
-  "web-search" | "http-get" | "http-post" | "web" | "fetch" | "api";
-
-export type Permission = "read" | "write" | "web";
+export type Permission = "read" | "write" | "web" | "ask";
 
 /**
- * Configuration for each mode, defining its name and allowed permissions
- * */
-export type ModeConfig = {
+ * Configuration for each agent, defining its name and allowed permissions
+ */
+export type AgentConfig = {
   name: string;
   icon?: string;
   color?: ThemeColor;
@@ -20,10 +17,16 @@ export type ModeConfig = {
   extraInstructions?: string;
 };
 
-export type ToolManagerState = {
-  currentMode: string;
-  currentModeConfig: ModeConfig;
+/**
+ * Visual permission badges for an agent, e.g. "read ✓ · write ✓ · web ✗".
+ * `ask` counts as a soft "write" (tools stay active but require confirmation).
+ */
+export type PermissionBadges = Record<
+  "read" | "write" | "web",
+  "✓" | "✗" | "!"
+>;
 
-  deniedTools: string[];
-  allowedTools: string[];
+export type AgentState = {
+  currentAgent: string;
+  currentAgentConfig: AgentConfig;
 };

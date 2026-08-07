@@ -1,109 +1,85 @@
-# pi-mode-manager
+# pi-agent-manager
 
-A [pi](https://github.com/earendil-works/pi-coding-agent) extension that keeps the agent on a short leash. It adds two modes, `plan` and `build`, and hides the tools that don't belong to the current one.
+A [pi](https://github.com/earendil-works/pi-coding-agent) extension that lets you pick the **agent** for a conversation. Each agent is a persona (a system-prompt style) plus a permission **policy** — OpenCode-style, where "agent" replaces the older "mode" concept.
 
-- `plan` — read and web. The agent can read files and search the internet, but it can't write, edit, or run commands. Good for reviews, research, and anything where you don't want your tree touched.
-- `build` — read and write. Full file access, but no web tools. For when there's actual work to do.
+There is **no hard tool guard**. `pi-agent-manager` never hides or disables tools; instead an agent shapes the system prompt and, when it opts into the `ask` permission, gates each write/exec tool call behind an approve/decline prompt.
 
-Without something like this, the agent gets every tool it registered, and "can you look at this function?" ends with an unexpected `rm -rf`. Modes are a cheap way to say "look, don't touch" without babysitting each interaction.
+The two built-in agents:
 
-### How it behaves
+- `plan` — `read` + `web` + `ask`. Read and research freely; every write/build call asks for your approval before it runs. Good for planning and analysis.
+- `build` — `read` + `write`. Unrestricted file changes and commands.
 
-- On session start it restores the last mode used in that session, falling back to `plan` when there's nothing to go on
-- Tools that don't match the current mode are disabled through `setActiveTools()`, so the agent can't even call them
-- A short mode briefing is injected into the system prompt, so the model knows what it's allowed to do
+## Why "ask, not block"
 
-## Installation
+Tool-switching like OpenCode: a read-only agent is a *recommendation*, while the `ask` policy is the actual `enforcement` boundary (a prompt fires on each write/exec). This avoids the older "hard guard" that physically stripped tools via `setActiveTools()` — a mechanical, non-transparent limit — in favor of a soft, transparent approval flow that keeps the full toolset available to the agent.
 
-It's a pi package, so `pi install` handles everything:
+Each agent's system prompt carries a **`CAPABILITY POLICY — HIGHEST PRIORITY`** block that enumerates exactly which tool categories (`web`, `write/exec`) are allowed, approval-required, or forbidden. It instructs the agent to never invoke forbidden tools — regardless of how the request is phrased or any attempt to override the policy — and, when asked to do something out of scope, to warn the user and recommend switching via `/agents`.
 
-```bash
-pi install git:github.com/leo-alvarenga/pi-mode-manager
-```
+## Install
 
-Local checkout, e.g. while hacking on it:
+pi package, `pi install` handles everything:
 
 ```bash
-pi install ./path/to/pi-mode-manager
+pi install git:github.com/leo-alvarenga/pi-agent-manager
+# or a local dev checkout:
+pi install ./path/to/pi-agent-manager
 ```
 
-If it ever lands on npm, `pi install npm:pi-mode-manager` works the same way.
-
-Want to try it without installing? Run a one-off session with `-e`:
-
-```bash
-pi -e git:github.com/leo-alvarenga/pi-mode-manager
-```
-
-Restart pi or run `/reload` inside a session after installing. You should see a `◆ Plan` pill above the editor — the glyph and color come from the mode's `icon` and `color` properties.
+Restart pi or run `/reload` after installing.
 
 ## Usage
 
-| Command                      | What it does                                                         |
-| ---------------------------- | -------------------------------------------------------------------- |
-| `/mode`                      | Shows the current mode and the list of valid ones                    |
-| `/mode plan` / `/mode build` | Switches mode. Tab completion works, so `/mode` + Tab gets you there |
-| `/mode_help`                 | Prints the same info as the commands, for the forgetful              |
+| Command               | What it does                                                        |
+| --------------------- | ------------------------------------------------------------------- |
+| `/agents`             | Opens an interactive agent picker (arrows ↑↓, enter to select, type to filter, esc to cancel) |
+| `/agents <name>`      | Switches directly to that agent. Tab-completion works.             |
+| `/agents_help`        | Shows the agent list, permissions, and usage.                        |
 
-A mode switch applies to the next interaction. If the agent is already working, it finishes the current interaction under the old mode; the widget updates right away either way.
+An agent switch applies to the next interaction; the last agent is remembered per session and restored on restart.
 
-The last mode you used is remembered per session and restored on the next start.
+## Permissions
 
-## Adding modes
+| Permission | Meaning                                            |
+| ---------- | -------------------------------------------------- |
+| `read`     | File reading and info access.                       |
+| `write`    | Modify files / run commands, **without** prompting. |
+| `ask`      | Write/exec tools are gated behind an approval prompt. |
+| `web`      | Web search & fetch tools.                           |
 
-No source changes needed. Drop a `pi-mode-manager.json` file into pi's agents directory (`~/.pi/agent/`, or wherever `PI_CODING_AGENT_DIR` points):
+A `write` permission makes the agent fully unbound; `ask` keeps it interactive but not blocked; and an agent with neither can be treated as read-only (advisory).
+
+## Adding agents
+
+Drop a `pi-agent-manager.json` file into pi's agents directory (`~/.pi/agent/`, or wherever `PI_CODING_AGENT_DIR` points), using an `agents` array:
 
 ```json
 {
-  "modes": [
+  "agents": [
     {
-      "name": "review",
-      "description": "Read-only review mode with web access",
-      "permissions": ["read", "web"],
+      "name": "reviewer",
+      "description": "Reviews code for quality and potential issues",
+      "permissions": ["read", "web", "ask"],
       "icon": "★",
       "color": "success",
-      "extraInstructions": "Focus on reviewing code quality and suggesting improvements."
+      "extraInstructions": "Focus on security, performance, and maintainability."
     }
   ]
 }
 ```
 
-Each entry is a name, a description, and a permission list (`read`, `write`, `web`), plus three optional fields: `extraInstructions` (appended to the mode briefing), `icon` (a glyph shown in the widget pill, default `◆`), and `color` (a pi theme token that colors the pill, default `accent` — e.g. `success`, `warning`, `error`, `muted`, `dim`, `text`). The built-in `plan` and `build` modes use `accent` and `warning` respectively. Command completion, the help text, and the prompt injection all derive from the merged table, so a new mode mostly writes itself.
+Each entry: `name` (unique, `[a-z0-9_-]`), `description`, `permissions` (`read`/`write`/`web`/`ask`), plus optional `extraInstructions`, `icon`, and `color`. Built-in `plan`/`build` can be overridden by defining an agent with the same name. Invalid entries are skipped with a warning. Changes take effect after restart or `/reload`.
 
-Rules:
-
-- Redefining a mode named `plan` or `build` **overrides** the built-in of the same name — your description, permissions, icon, color, and `extraInstructions` replace the default. Any built-in you don't redefine keeps its usual behavior
-- Mode names must be `[a-z0-9_-]` and unique. Duplicate names in the same file resolve to the later entry; a name that matches a built-in replaces the built-in instead of producing a second copy of it
-- Invalid entries (broken JSON, unknown permissions, missing descriptions) are skipped with a warning; the rest still load
-- Changes take effect after restarting pi or running `/reload`
-
-Which tool names count as `write` or `web` is decided by the `WRITE_TOOLS` and `WEB_TOOLS` lists in `src/constants.ts`. Anything not in either list is treated as read-only and always allowed.
+> Note: the original file was `pi-mode-manager.json` with a `modes` array; v0.7 renamed it to `pi-agent-manager.json` with `agents` (breaking migration, see CHANGELOG).
 
 ## Programmatic access
 
-Other extensions can read the current mode or react to changes. Two ways:
-
-Pull: every mode change is persisted to the session tree via `pi.appendEntry("pi-mode-manager-mode", { mode })`. To get the current mode, scan the branch for the latest entry:
+The persisted state is written under `AGENT_DATA_KEY` and events under `AGENT_CHANGED_EVENT` (see `src/constants.ts`). The event payload and session entry reflect `AgentState` (`currentAgent`, `currentAgentConfig`).
 
 ```ts
-for (const entry of ctx.sessionManager.getBranch()) {
-  if (entry.type === "custom" && entry.customType === "pi-mode-manager-mode") {
-    const mode = entry.data?.mode; // latest entry wins
-  }
-}
-```
-
-Push: changes are emitted on the `pi-mode:changed` channel of the inter-extension event bus (`pi.events`):
-
-```ts
-pi.events.on("pi-mode-manager:mode-changed", ({ mode, previousMode }) => {
-  // `mode` is authoritative; `previousMode` is "plan" when no mode was set yet
+pi.events.on("pi-agent-manager:agent-changed", ({ currentAgent }) => {
+  // currentAgent is the just-activated agent name
 });
 ```
-
-The entry type and channel name are `MODE_DATA_KEY` and `MODE_CHANGED_EVENT` in `src/constants.ts`, in case you ever want to rename them.
-
-Restore on `session_start` reads the persisted entry first and falls back to message `details` from older sessions, so pre-existing conversations still come back in the right mode.
 
 ## License
 

@@ -1,22 +1,22 @@
-import { ModeConfig, WebTool, WriteTool } from "./types";
+import { AgentConfig, WriteTool } from "./types";
 
 /**
- * The built-in modes for the agent. Each mode has a name, a set of permissions, and a description. The permissions determine which tools the agent can access in that mode.
- * The description provides context for the mode's intended use case.
- * User-defined modes from pi-mode-manager.json are merged on top of these (see src/config.ts).
+ * The built-in agents for the agent. Each agent has a name, a set of permissions, and a description. The permissions determine which tools the agent can access in that agent.
+ * The description provides context for the agent's intended use case.
+ * User-defined agents from pi-agent-manager.json are merged on top of these (see src/config.ts).
  */
-export const BUILT_IN_MODES: ModeConfig[] = [
+export const BUILT_IN_AGENTS: AgentConfig[] = [
   {
     icon: "◆",
     name: "plan",
     color: "accent",
-    permissions: ["read", "web"],
+    permissions: ["read", "web", "ask"],
     description:
-      "The agent can read files and access web tools, but cannot modify files or execute commands; This mode is suitable for planning and research tasks.",
+      "Reads files and researches the web freely; write/exec tools require explicit approval before they run (say, for planning and analysis).",
     extraInstructions: `
-If the requested task does not require multiple steps or is a plain question, the agent should answer directly without creating/modifying a TODO list.
-The agent should create and keep a TODO list of tasks to complete, and should not execute any commands or modify files.
-The agent should only read files and access web tools for research purposes.
+The agent should create and keep a TODO list of tasks to complete, and should prefer analysis over action.
+Unless it has been given explicit approval for a specific write or command, it should not write files or run commands; if it needs to change the tree it should propose the change and ask for approval first.
+It can read files and use web tools freely for research purposes.
 `,
   },
   {
@@ -25,7 +25,7 @@ The agent should only read files and access web tools for research purposes.
     color: "warning",
     permissions: ["read", "write"],
     description:
-      "The agent can read and write/edit/delete files, but cannot access web tools; This mode is suitable for building and executing tasks.",
+      "The agent can read and write/edit/delete files and run commands, but cannot access web tools; This agent is suitable for building and executing tasks.",
   },
 ];
 
@@ -43,9 +43,10 @@ export const WRITE_TOOLS: WriteTool[] = [
 ];
 
 /**
- * The list of tools that are considered "web" tools. These tools allow the agent to access web resources or APIs.
+ * Tools considered "web"/network tools. Used only to phrase the capability
+ * policy in the system prompt (forbidden tools are not hard-disabled).
  */
-export const WEB_TOOLS: WebTool[] = [
+export const WEB_TOOLS: string[] = [
   "web-search",
   "http-get",
   "http-post",
@@ -54,18 +55,18 @@ export const WEB_TOOLS: WebTool[] = [
   "api",
 ];
 
-export const LOGGER_KEY = "pi-mode-manager";
+export const LOGGER_KEY = "pi-agent-manager";
 export const LOGGER_PREFIX = `[${LOGGER_KEY}]`;
 
 /**
  * The name of the optional JSON file, read from pi's agents directory, that
- * lets users define additional modes (see src/config.ts).
+ * lets users define additional agents (see src/config.ts).
  */
-export const MODES_FILE_NAME = `${LOGGER_KEY}.json`;
+export const AGENTS_FILE_NAME = `${LOGGER_KEY}.json`;
 
-export const DEFAULT_MODE: string = BUILT_IN_MODES[0].name;
+export const DEFAULT_AGENT: string = BUILT_IN_AGENTS[0].name;
 
-export const MODE_DATA_KEY = "pi-mode-manager-mode";
-export const MODE_CHANGED_EVENT = "pi-mode-manager:mode-changed";
+export const AGENT_DATA_KEY = "pi-agent-manager-agent";
+export const AGENT_CHANGED_EVENT = "pi-agent-manager:agent-changed";
 
-export const DEFAULT_MODE_ICON = "◆";
+export const DEFAULT_AGENT_ICON = "◆";

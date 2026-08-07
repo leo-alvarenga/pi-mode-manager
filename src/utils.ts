@@ -1,5 +1,4 @@
-import { WEB_TOOLS, WRITE_TOOLS } from "./constants";
-import { ModeConfig, WebTool, WriteTool } from "./types";
+import { AgentConfig, PermissionBadges } from "./types";
 import { Logger } from "./logger";
 
 export function capitalize(str: string): string {
@@ -21,76 +20,48 @@ export function truncateString(
 }
 
 /**
- * Checks if the provided mode is valid for the given mode configuration
- * @param mode - The mode to validate
- * @param modes - The available mode configurations
- * @returns boolean indicating if the mode is valid
+ * Checks if the provided agent is valid for the given agent configuration
+ * @param agent - The agent to validate
+ * @param agents - The available agent configurations
+ * @returns boolean indicating if the agent is valid
  */
-export function isValidMode(mode: string, modes: ModeConfig[]): boolean {
-  return modes.some((m) => m.name === mode.toLowerCase());
+export function isValidAgent(agent: string, agents: AgentConfig[]): boolean {
+  return agents.some((m) => m.name === agent.toLowerCase());
 }
 
 /**
- * Checks if a tool is allowed in the current mode based on its permissions
- * @param tool - The tool name to check
- * @param mode - The current mode configuration
- * @returns boolean indicating if the tool is allowed in the current mode
+ * Compact, human-readable permission badge row for an agent (mimics OpenCode's
+ * per-agent tool matrix). `ask` shows as a "soft write" badge (!).
+ *
+ * @example read ✓ · write ✓ · web ✗
+ * @example read ✓ · write ! · web ✗   (ask policy)
  */
-export function isToolAllowed(tool: string, mode: ModeConfig): boolean {
-  if (WRITE_TOOLS.includes(tool as WriteTool)) {
-    return mode.permissions.includes("write");
-  }
+export function getPermissionBadges(agent: AgentConfig): string {
+  const has = (p: "read" | "write" | "web" | "ask") =>
+    agent.permissions.includes(p);
 
-  if (WEB_TOOLS.includes(tool as WebTool)) {
-    return mode.permissions.includes("web");
-  }
+  const badges: PermissionBadges = {
+    read: has("read") ? "✓" : "✗",
+    write: has("write") ? "✓" : has("ask") ? "!" : "✗",
+    web: has("web") ? "✓" : "✗",
+  };
 
-  return true;
+  return `read ${badges.read} · write ${badges.write} · web ${badges.web}`;
 }
 
 /**
- * Returns a string of valid mode names, optionally filtered by a tool name
- * @param modes - The available mode configurations
- * @param toolName - Optional tool name to filter valid modes
- * @returns ModeConfig[] list of valid modes
+ * Returns a string of valid agent names, optionally filtered by a tool name
+ * @param agents - The available agent configurations
+ * @param toolName - Optional tool name to filter valid agents
+ * @returns AgentConfig[] list of valid agents
  */
-export function getValidModes(
-  modes: ModeConfig[],
-  toolName?: string,
-): ModeConfig[] {
-  let modesWithTool: ModeConfig[] = modes;
-
-  if (toolName?.length) {
-    modesWithTool = modes.filter((m) => isToolAllowed(toolName, m));
-  }
-
-  return modesWithTool;
-}
-
 /**
- * Returns a string of valid mode names, optionally filtered by a tool name
- * @param modes - The available mode configurations
- * @param toolName - Optional tool name to filter valid modes
- * @returns string list of valid mode names
+ * Returns the list of valid agent names.
+ * @param agents - The available agent configurations
+ * @returns string list of valid agent names
  */
-export function getValidModeNames(
-  modes: ModeConfig[],
-  toolName?: string,
-): string[] {
-  return getValidModes(modes, toolName).map((m) => m.name);
-}
-
-/**
- * Returns a list of tools that are not allowed in the current mode
- * @param mode - The current mode configuration
- * @param allTools - List of all available tools
- * @returns array of disallowed tool names
- */
-export function getAllowedTools(
-  mode: ModeConfig,
-  allTools: string[],
-): string[] {
-  return allTools.filter((tool) => isToolAllowed(tool, mode));
+export function getValidAgentNames(agents: AgentConfig[]): string[] {
+  return agents.map((m) => m.name);
 }
 
 function permissionToString(permission: string, logger: Logger): string {
@@ -99,6 +70,8 @@ function permissionToString(permission: string, logger: Logger): string {
       return logger.fg("success", "read");
     case "write":
       return logger.fg("error", "write");
+    case "ask":
+      return logger.fg("accent", "ask");
     case "web":
       return logger.fg("warning", "web");
     default:
@@ -106,7 +79,7 @@ function permissionToString(permission: string, logger: Logger): string {
   }
 }
 
-function modeToString(
+function agentToString(
   {
     color,
     icon,
@@ -114,7 +87,7 @@ function modeToString(
     description,
     permissions,
     extraInstructions,
-  }: ModeConfig,
+  }: AgentConfig,
   logger: Logger,
 ): string {
   let label = capitalize(name);
@@ -135,27 +108,26 @@ function modeToString(
 }
 
 /**
- * Returns a help text string that describes the PiModeManager, available modes, permissions, and usage instructions
- * @param modes - The available mode configurations
+ * Returns a help text string that describes the PiAgentManager, available agents, permissions, and usage instructions
+ * @param agents - The available agent configurations
  * @returns string help text
  */
-export function getHelpText(modes: ModeConfig[], logger: Logger): string {
+export function getHelpText(agents: AgentConfig[], logger: Logger): string {
   return `
-This extension helps you manage what you agent can do by hiding or showing tools based on the current mode.
-Each mode has specific ${logger.bold(logger.fg("warning", "permissions"))} that determine which ${logger.bold(logger.fg("toolTitle", "tools"))} are accessible.
-Use the ${logger.bold(logger.fg("accent", "\`mode\`"))} command to switch between modes and control the agent's capabilities.
+This extension lets you pick the agent for a conversation. Each agent is a persona (a prompt plus a permission policy) that shapes how the agent behaves: it can be read-only, "ask" before write/exec, or fully unguarded.
 
-${logger.bold(logger.fg("accent", "> Available modes"))}
-${modes.map((m) => modeToString(m, logger)).join("\n")}
+${logger.bold(logger.fg("accent", "> Available agents"))}
+${agents.map((m) => agentToString(m, logger)).join("\n")}
 
 ${logger.bold(logger.fg("accent", "> Permissions"))}
   - ${permissionToString("read", logger)}: Allows the agent to read files and access information
-  - ${permissionToString("write", logger)}: Allows the agent to modify files, execute commands, and perform write operations
+  - ${permissionToString("write", logger)}: Allows the agent to modify files, execute commands, and perform write operations without prompting
+  - ${permissionToString("ask", logger)}: Allows write tools (edit, bash, ...) but asks the user before each one runs \u2013 a soft approval policy
   - ${permissionToString("web", logger)}: Allows the agent to access web tools for searching and fetching data
 
 ${logger.bold(logger.fg("accent", "> Usage"))}
-  - To see all available modes: \`mode\`
-  - To switch modes: \`mode <mode_name>\`
-  - To see this menu: \`mode_help\`
+  - To open the agent picker: \`/agents\` (arrow keys \u2191\u2193, enter to select, esc to cancel)
+  - To switch agents directly: \`/agents <name>\`
+  - To see this menu: \`/agents_help\`
 `;
 }
